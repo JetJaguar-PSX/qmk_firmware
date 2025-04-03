@@ -1,0 +1,40 @@
+{
+    "keyboard_name": "mds_test",
+    "manufacturer": "Shiitake",
+    "url": "https://jetjaguar-psx.github.io/",
+    "maintainer": "Shiitake",
+    "usb": {
+        "device_version": "1.0.0",
+        "pid": "0x4A56",
+        "vid": "0x504B"
+    },
+    "features": {
+        "bootmagic": true,
+        "command": false,
+        "console": false,
+        "extrakey": true,
+        "mousekey": true,
+        "nkro": false,
+        "rgblight": false
+    },
+    "matrix_pins": {
+        "cols": ["B5", "B4", "E6", "D7"],
+        "rows": ["B2"]
+    },
+    "diode_direction": "COL2ROW",
+    "split": {
+        "enabled": false
+    },
+    "processor": "atmega32u4",
+    "bootloader": "caterina",
+    "layouts": {
+        "LAYOUT": {
+            "layout": [
+                {"matrix":[0,0], "x":0, "y":0}, 
+                {"matrix":[0,1], "x":1, "y":0}, 
+                {"matrix":[0,2], "x":2, "y":0}, 
+                {"matrix":[0,3], "x":3, "y":0}
+            ]
+        }
+    }
+}
