@@ -1,0 +1,9 @@
+POINTING_DEVICE_ENABLE = yes
+POINTING_DEVICE_DRIVER = custom
+SRC += analog.c
+SRC += mugendakensammyaku.c
+SRC += add_keycodes.c
+LTO_ENABLE = yes
+OS_DETECTION_ENABLE = yes
+NO_USB_STARTUP_CHECK = yes
+WAIT_FOR_USB = yes
