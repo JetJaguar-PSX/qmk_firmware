@@ -12,5 +12,11 @@
             ["9,2","8,0","9,3"],
             [{"x":1},"9,4",{"x":0.5},"8,1","8,2","8,3",{"x":0.5},"8,4"]
         ]
-    }
+    },
+    "customKeycodes": [
+        {"name": "AUTO_MOUSE_TOGGLE",  "title": "AUTO_MOUSE_TOGGLE", "shortName": "AUTO_MOUSE_TOGGLE"},
+        {"name": "JOYSTICK_CARIBRATION",  "title": "JOYSTICK_CARIBRATION", "shortName": "JOYSTICK_CARIBRATION"},
+        {"name": "JOYSTICK_LEFT_MODE_CHANGE",  "title": "JOYSTICK_LEFT_MODE_CHANGE", "shortName": "JOYSTICK_LEFT_MODE_CHANGE"},
+        {"name": "JOYSTICK_RIGHT_MODE_CHANGE",  "title": "JOYSTICK_RIGHT_MODE_CHANGE", "shortName": "JOYSTICK_RIGHT_MODE_CHANGE"}
+    ]
 }

@@ -8,7 +8,11 @@
 enum keycodes_MDS{
     AUTO_MOUSE_TOGGLE = QK_KB_0,
     JOYSTICK_CARIBRATION,
-    JOYSTICK_MODE_CHANGE
+    JOYSTICK_MODE_CHANGE,
+    LCTL_CMD_AUTO,
+    RCTL_CMD_AUTO,
+    MUHENKAN_EISUU_AUTO,
+    HENKAN_KANA_AUTO
 };
 
 bool process_record_addedkeycodes(uint16_t keycode, keyrecord_t *record);
