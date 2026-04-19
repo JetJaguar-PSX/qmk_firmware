@@ -113,8 +113,8 @@ report_mouse_t mouse_mode_task(int input_x, int input_y){
         temp_y = (float)input_y;
     }
 
-    temp_x = 0.005 * temp_x + fraction_x;
-    temp_y = 0.005 * temp_y + fraction_y;
+    temp_x = 0.005 * temp_x * temp_x + fraction_x;
+    temp_y = 0.005 * temp_y * temp_y + fraction_y;
 
     temp_x = temp_x > 127 ? 127 : temp_x;
     temp_x = temp_x < -127 ? -127 : temp_x;
