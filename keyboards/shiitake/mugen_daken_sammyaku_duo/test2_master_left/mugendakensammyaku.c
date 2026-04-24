@@ -362,8 +362,6 @@ void dpad_mode_task(int input_x, int input_y, int lr_flag){
 //     return mouse_report;
 // }
 
-int current_state = 0;
-// bool twinstick_lock_flag = false;
 bool twinstick_mode = false;
 
 report_mouse_t fusion_mode_task_all(int input[2][2], int lr_flag){
@@ -386,7 +384,7 @@ report_mouse_t fusion_mode_task_all(int input[2][2], int lr_flag){
         if(deadzone_checker(5 * input[i][0], 5 * input[i][1], (4 * MOUSE_DEADZONE))){
             active_flag[i][1] = true;
         }
-        if(deadzone_checker(3 * input[i][0], 3 * input[i][1], (2 * MOUSE_DEADZONE))){
+        if(deadzone_checker(10 * input[i][0], 10 * input[i][1], (7 * MOUSE_DEADZONE))){
             active_flag[i][2] = true;
         }
     }
@@ -395,18 +393,23 @@ report_mouse_t fusion_mode_task_all(int input[2][2], int lr_flag){
     int input_1[2] = {input[1][0], input[1][1]};
 
     if(twinstick_mode){
-        state = current_state;
-        if((!active_flag[0][2]) && (!active_flag[1][2])){
+        if((active_flag[0][2]) && (active_flag[1][2])){
+            if (vector2d_normalized_dot(input_0, input_1) > (0.5)){
+                state = SAME_WAY_NUMBER;
+            }else if (vector2d_normalized_dot(input_0, input_1) < (-0.5)){
+                state = OPPOSITE_WAY_NUMBER;
+            }
+        }else if((!active_flag[0][2]) && (!active_flag[1][2])){
             twinstick_mode = false;
             state = 0;
         }
     }else{
         if((active_flag[0][1]) && (active_flag[1][1])){
-            if (vector2d_normalized_dot(input_0, input_1) > (cos(atan(0.57)))){
-                state = SAME_WAY_NUMBER;
-            }else if (vector2d_normalized_dot(input_0, input_1) < (cos(atan(-0.27)))){
-                state = OPPOSITE_WAY_NUMBER;
-            }
+            // if (vector2d_normalized_dot(input_0, input_1) > (0.86)){
+            //     state = SAME_WAY_NUMBER;
+            // }else if (vector2d_normalized_dot(input_0, input_1) < (-0.86)){
+            //     state = OPPOSITE_WAY_NUMBER;
+            // }
             twinstick_mode = true;
         }else if(active_flag[1-lr_flag][0]){
             state = MOUSE_ONLY_NUMBER;
@@ -517,7 +520,6 @@ report_mouse_t fusion_mode_task_all(int input[2][2], int lr_flag){
             break;
     }
 
-    current_state = state;
     return mouse_report;
 }
 
