@@ -13,7 +13,7 @@ status_mds_main_t state_mds_main;
 status_mds_ajs_t state_mds_joystick[2];
 
 keypos_t dpad_keypos[2][4];
-bool dpad_flag[2][4] ={
+bool dpad_available[2][4] ={
     {false,false,false,false},
     {false,false,false,false}
 };
@@ -36,18 +36,36 @@ void savedata_update(void){
 
 void savedata_load(void){
     state_mds_main.savedata_total = eeconfig_read_kb();
-    state_mds_joystick[0].mode = state_mds_main.savedata0;
-    state_mds_joystick[1].mode = state_mds_main.savedata1;
+
+    if(state_mds_main.savedata0 < 1 || state_mds_main.savedata0 > mode_num){
+        state_mds_joystick[0].mode = state_mds_main.savedata0;
+    }else{
+        state_mds_joystick[0].mode = MOUSE_MODE_NUMBER;
+    }
+
+    if(state_mds_main.savedata1 < 1 || state_mds_main.savedata1 > mode_num){
+        state_mds_joystick[1].mode = state_mds_main.savedata1;
+    }else{
+        state_mds_joystick[1].mode = MOUSE_MODE_NUMBER;
+    }
 }
 
 void joystick_check(void){
-    joystick_caribration();
-    if(joystick_origin[0][0] < 50 || joystick_origin[0][1] < 50){
+    int joystick_check[2][2] = {
+        {0,0},
+        {0,0}
+    };
+    joystick_check[0][0] = analogReadPin(LEFT_JOYSTICK_XPIN);
+    joystick_check[0][1] = analogReadPin(LEFT_JOYSTICK_YPIN);
+    joystick_check[1][0] = analogReadPin(RIGHT_JOYSTICK_XPIN);
+    joystick_check[1][1] = analogReadPin(RIGHT_JOYSTICK_YPIN);
+
+    if(joystick_check[0][0] < 50 || joystick_check[0][1] < 50){
         state_mds_joystick[0].connected = false;
     }else{
         state_mds_joystick[0].connected = true;
     }
-    if(joystick_origin[1][0] < 50 || joystick_origin[1][1] < 50){
+    if(joystick_check[1][0] < 50 || joystick_check[1][1] < 50){
         state_mds_joystick[1].connected = false;
     }else{
         state_mds_joystick[1].connected = true;
@@ -55,7 +73,7 @@ void joystick_check(void){
 }
 
 
-void joystick_caribration(void){
+void joystick_calibration(void){
     joystick_origin[0][0] = analogReadPin(LEFT_JOYSTICK_XPIN);
     joystick_origin[0][1] = analogReadPin(LEFT_JOYSTICK_YPIN);
     joystick_origin[1][0] = analogReadPin(RIGHT_JOYSTICK_XPIN);
@@ -72,7 +90,7 @@ void joystick_mode_change(int lr_flag){
         state_mds_joystick[lr_flag].mode = 1;
     }
     savedata_update();
-    joystick_caribration();
+    joystick_calibration();
     for(int i=0; i<2; i++){
         for(int j=0; j<4; j++){
             unregister_code(keymap_key_to_keycode(0, dpad_keypos[i][j]));
@@ -114,7 +132,7 @@ void pointing_device_init_kb(void){
     joystick_check();
 
     if(state_mds_joystick[0].connected || state_mds_joystick[1].connected){
-        joystick_caribration();
+        joystick_calibration();
     }
 
     set_auto_mouse_enable(state_mds_main.auto_mouse_flag);
@@ -134,7 +152,12 @@ float vector2d_dot(int input_a[2], int input_b[2]){
 }
 
 float vector2d_normalized_dot(int input_a[2], int input_b[2]){
-    return  (vector2d_dot(input_a, input_b) / vector2d_magnitude(input_a) )/ vector2d_magnitude(input_b);
+    float deno = vector2d_magnitude(input_a) * vector2d_magnitude(input_b);
+    if(deno){
+        return vector2d_dot(input_a, input_b) / deno;
+    }else{
+        return 0.0f;
+    }
 }
 
 bool deadzone_checker(int input_x, int input_y, int deadzone_val){
@@ -146,7 +169,7 @@ bool deadzone_checker(int input_x, int input_y, int deadzone_val){
 float fraction_x = 0;
 float fraction_y = 0;
 
-report_mouse_t mouse_mode_task(int input_x, int input_y, int btn_num, bool shift_flag){
+report_mouse_t mouse_mode_task(int input_x, int input_y, int btn_num){
     report_mouse_t mouse_report;
     mouse_report.x = 0;
     mouse_report.y = 0;
@@ -157,13 +180,6 @@ report_mouse_t mouse_mode_task(int input_x, int input_y, int btn_num, bool shift
     float temp_x = 0;
     float temp_y = 0;
     bool active_flag = deadzone_checker(input_x, input_y, MOUSE_DEADZONE);
-
-    shift_trigger = false;
-    if(shift_flag){
-        if(deadzone_checker(3 * input_x, 3 * input_y, (2 * MOUSE_DEADZONE))){
-            shift_trigger = true;
-        }
-    }
 
     if(active_flag){
         temp_x = (float)input_x;
@@ -192,7 +208,7 @@ report_mouse_t mouse_mode_task(int input_x, int input_y, int btn_num, bool shift
 float fraction_h = 0;
 float fraction_v = 0;
 
-report_mouse_t scroll_mode_task(int input_h, int input_v, bool ctrl_flag){
+report_mouse_t scroll_mode_task(int input_h, int input_v){
     report_mouse_t scroll_report;
     scroll_report.x = 0;
     scroll_report.y = 0;
@@ -203,13 +219,6 @@ report_mouse_t scroll_mode_task(int input_h, int input_v, bool ctrl_flag){
     float temp_h = 0;
     float temp_v = 0;
     bool active_flag = deadzone_checker(input_h, input_v, SCROLL_DEADZONE);
-
-    ctrl_trigger = false;
-    if(ctrl_flag){
-        if(deadzone_checker(3 * input_h, 3 * input_v, (2 * SCROLL_DEADZONE))){
-            ctrl_trigger =true;
-        }
-    }
 
     if(active_flag){
         temp_h = (float)input_h;
@@ -242,127 +251,63 @@ void dpad_mode_task(int input_x, int input_y, int lr_flag){
     
     if(input_y < -each_axis_deadzone){
         if(active_flag){
-            if(dpad_flag[lr_flag][0]){
+            if(dpad_available[lr_flag][0]){
                 layer_num[0] = layer_switch_get_layer(dpad_keypos[lr_flag][0]);
                 register_code(keymap_key_to_keycode(layer_num[0], dpad_keypos[lr_flag][0]));
-                dpad_flag[lr_flag][0] = false;
+                dpad_available[lr_flag][0] = false;
             }
         }
-    }else if(!dpad_flag[lr_flag][0]){
+    }else if(!dpad_available[lr_flag][0]){
             layer_num[0] = layer_switch_get_layer(dpad_keypos[lr_flag][0]);
             unregister_code(keymap_key_to_keycode(layer_num[0], dpad_keypos[lr_flag][0]));
-            dpad_flag[lr_flag][0] = true;
+            dpad_available[lr_flag][0] = true;
     }
     if(input_x < -each_axis_deadzone){
         if(active_flag){
-            if(dpad_flag[lr_flag][1]){
+            if(dpad_available[lr_flag][1]){
                 layer_num[1] = layer_switch_get_layer(dpad_keypos[lr_flag][1]);
                 register_code(keymap_key_to_keycode(layer_num[1], dpad_keypos[lr_flag][1]));
-                dpad_flag[lr_flag][1] = false;
+                dpad_available[lr_flag][1] = false;
             }
         }
-    }else if(!dpad_flag[lr_flag][1]){
+    }else if(!dpad_available[lr_flag][1]){
             layer_num[1] = layer_switch_get_layer(dpad_keypos[lr_flag][1]);
             unregister_code(keymap_key_to_keycode(layer_num[1], dpad_keypos[lr_flag][1]));
-            dpad_flag[lr_flag][1] = true;
+            dpad_available[lr_flag][1] = true;
     }
     if(input_x > each_axis_deadzone){
         if(active_flag){
-            if(dpad_flag[lr_flag][2]){
+            if(dpad_available[lr_flag][2]){
                 layer_num[2] = layer_switch_get_layer(dpad_keypos[lr_flag][2]);
                 register_code(keymap_key_to_keycode(layer_num[2], dpad_keypos[lr_flag][2]));
-                dpad_flag[lr_flag][2] = false;
+                dpad_available[lr_flag][2] = false;
             }
         }
-    }else if(!dpad_flag[lr_flag][2]){
+    }else if(!dpad_available[lr_flag][2]){
             layer_num[2] = layer_switch_get_layer(dpad_keypos[lr_flag][2]);
             unregister_code(keymap_key_to_keycode(layer_num[2], dpad_keypos[lr_flag][2]));
-            dpad_flag[lr_flag][2] = true;
+            dpad_available[lr_flag][2] = true;
     }
     if(input_y > each_axis_deadzone){
         if(active_flag){
-            if(dpad_flag[lr_flag][3]){
+            if(dpad_available[lr_flag][3]){
                 layer_num[3] = layer_switch_get_layer(dpad_keypos[lr_flag][3]);
                 register_code(keymap_key_to_keycode(layer_num[3], dpad_keypos[lr_flag][3]));
-                dpad_flag[lr_flag][3] = false;
+                dpad_available[lr_flag][3] = false;
             }
         }
-    }else if(!dpad_flag[lr_flag][3]){
+    }else if(!dpad_available[lr_flag][3]){
             layer_num[3] = layer_switch_get_layer(dpad_keypos[lr_flag][3]);
             unregister_code(keymap_key_to_keycode(layer_num[3], dpad_keypos[lr_flag][3]));
-            dpad_flag[lr_flag][3] = true;
+            dpad_available[lr_flag][3] = true;
     }
 }
 
-// int fusion_mode_way_checker(int input_x, int input_y){
-//     int ans = 0;
-//     if(abs(input_x) > abs(input_y)){
-//         if(input_x > MOUSE_DEADZONE){
-//             ans = LEFT_NUMBER;
-//         }else if(input_x < -MOUSE_DEADZONE){
-//             ans = -LEFT_NUMBER;
-//         }
-//     }else if(abs(input_x) < abs(input_y)){
-//         if(input_y > MOUSE_DEADZONE){
-//             ans = -UP_NUMBER;
-//         }else if(input_y < -MOUSE_DEADZONE){
-//             ans = UP_NUMBER;
-//         }
-//     }
-//     return ans;
-// }
-
-// int barrelroll_count = 0; // 要らなくなったら削除
-
-// report_mouse_t fusion_mode_barrelroll(int8_t rotate_way){
-//     report_mouse_t mouse_report;
-//     mouse_report.x = 0;
-//     mouse_report.y = 0;
-//     mouse_report.h = 0;
-//     mouse_report.v = 0;
-//     mouse_report.buttons = 0;
-//     mouse_report.buttons |= MOUSE_BTN3;
-//     shift_trigger = true;
-    
-//     switch(barrelroll_count){
-//         case 0:
-//             mouse_report.x = 2 * rotate_way;
-//             break;
-//         case 1:
-//             mouse_report.x = rotate_way;
-//             mouse_report.y = -rotate_way;
-//             break;
-//         case 2:
-//             mouse_report.y = -2 * rotate_way;
-//             break;
-//         case 3:
-//             mouse_report.x = -rotate_way;
-//             mouse_report.y = -rotate_way;
-//             break;
-//         case 4:
-//             mouse_report.x = -2 * rotate_way;
-//             break;
-//         case 5:
-//             mouse_report.x = -rotate_way;
-//             mouse_report.y = rotate_way;
-//             break;
-//         case 6:
-//             mouse_report.y = 2 * rotate_way;
-//             break;
-//         case 7:
-//             mouse_report.x = rotate_way;
-//             mouse_report.y = rotate_way;
-//             barrelroll_count = -1;
-//             break;
-//         default:
-//             break;
-//     }
-
-//     barrelroll_count++;
-//     return mouse_report;
-// }
-
 bool twinstick_mode = false;
+uint16_t twinstick_start_time = 0;
+uint16_t twinstick_exit_time = 0;
+bool exit_flag = false;
+int current_state = 0;
 
 report_mouse_t fusion_mode_task_all(int input[2][2], int lr_flag){
     report_mouse_t mouse_report;
@@ -394,104 +339,85 @@ report_mouse_t fusion_mode_task_all(int input[2][2], int lr_flag){
 
     if(twinstick_mode){
         if((active_flag[0][2]) && (active_flag[1][2])){
+            exit_flag = false;
+
             if (vector2d_normalized_dot(input_0, input_1) > (0.5)){
-                state = SAME_WAY_NUMBER;
+                if (current_state == SAME_WAY_START){
+                    if(timer_elapsed(twinstick_start_time) < TWINSTICK_START_MS){
+                        state = SAME_WAY_START;
+                    }else{
+                        state = SAME_WAY_ACTIVE;
+                    }
+                }
+    
+                if (current_state == SAME_WAY_ACTIVE){
+                    state = SAME_WAY_ACTIVE;
+                }
             }else if (vector2d_normalized_dot(input_0, input_1) < (-0.5)){
-                state = OPPOSITE_WAY_NUMBER;
+                if (current_state == OPPOSITE_WAY_START){
+                    if(timer_elapsed(twinstick_start_time) < TWINSTICK_START_MS){
+                        state = OPPOSITE_WAY_START;
+                    }else{
+                        state = OPPOSITE_WAY_ACTIVE;
+                    }
+                }
+    
+                if (current_state == OPPOSITE_WAY_ACTIVE){
+                    state = OPPOSITE_WAY_ACTIVE;
+                }
             }
-        }else if((!active_flag[0][2]) && (!active_flag[1][2])){
-            twinstick_mode = false;
-            state = 0;
+        }else{
+            if (!exit_flag){
+                state = current_state;
+                twinstick_exit_time = timer_read();
+                exit_flag = true;
+            }else{
+                if (timer_elapsed(twinstick_exit_time) >= TWINSTICK_EXIT_MS){
+                    twinstick_mode = false;
+                    exit_flag = false;
+                    state = 0;
+                }else{
+                    state = current_state;
+                }
+            }
         }
     }else{
         if((active_flag[0][1]) && (active_flag[1][1])){
-            // if (vector2d_normalized_dot(input_0, input_1) > (0.86)){
-            //     state = SAME_WAY_NUMBER;
-            // }else if (vector2d_normalized_dot(input_0, input_1) < (-0.86)){
-            //     state = OPPOSITE_WAY_NUMBER;
-            // }
-            twinstick_mode = true;
+            if (vector2d_normalized_dot(input_0, input_1) > (0.86)){
+                state = SAME_WAY_START;
+                twinstick_start_time = timer_read();
+                twinstick_mode = true;
+            }else if (vector2d_normalized_dot(input_0, input_1) < (-0.86)){
+                state = OPPOSITE_WAY_START;
+                twinstick_start_time = timer_read();
+                twinstick_mode = true;
+            }
         }else if(active_flag[1-lr_flag][0]){
-            state = MOUSE_ONLY_NUMBER;
+            state = MOUSE_ONLY_ACTIVE;
         }else if(active_flag[lr_flag][0]){
-            state = FUSION_ONLY_NUMBER;
+            state = FUSION_ONLY_ACTIVE;
         }
     }
 
-    // if((active_flag[1-lr_flag][1]) && (!active_flag[lr_flag][0])){
-    //     state = MOUSE_ONLY_NUMBER;
-    // }else if((!active_flag[1-lr_flag][0]) && (active_flag[lr_flag][1])){
-    //     state = FUSION_ONLY_NUMBER;
-    // }else if((active_flag[1-lr_flag][0]) && (active_flag[lr_flag][0])){
-    //     int joystick_way[2] = {
-    //         fusion_mode_way_checker(input[0][0], input[0][1]),
-    //         fusion_mode_way_checker(input[1][0], input[1][1])
-    //     };
-    //     if(joystick_way[0] == joystick_way[1]){
-    //         state = SAME_WAY_NUMBER;
-    //         twinstick_lock_flag = true;
-    //     }else{
-    //         switch(joystick_way[0] * abs(joystick_way[1])){
-    //             case (UP_NUMBER * UP_NUMBER):
-    //                 // 右回り
-    //                 state = -LEFT_NUMBER;
-    //                 break;
-    //             case (-UP_NUMBER * UP_NUMBER):
-    //                 // 左回り
-    //                 state = LEFT_NUMBER;
-    //                 break;
-    //             case (LEFT_NUMBER * LEFT_NUMBER):
-    //                 // 拡大
-    //                 state = UP_NUMBER;
-    //                 twinstick_lock_flag = true;
-    //                 break;
-    //             case (-LEFT_NUMBER * LEFT_NUMBER):
-    //                 // 縮小
-    //                 state = -UP_NUMBER;
-    //                 twinstick_lock_flag = true;
-    //                 break;
-    //             default:
-    //                 break;
-    //         }
-    //     }
-    // }else if((!active_flag[1-lr_flag][0]) && (!active_flag[lr_flag][0])){
-    //     twinstick_lock_flag = false;
-    // }
-
-    // if(twinstick_lock_flag){
-    //     if(current_state == SAME_WAY_NUMBER){
-    //         state = current_state;
-    //         shift_trigger = true;
-    //     }
-    //     if(current_state == UP_NUMBER){
-    //         state = current_state;
-    //         ctrl_trigger = true;
-    //     }
-    //     if(current_state == -UP_NUMBER){
-    //         state = current_state;
-    //         ctrl_trigger = true;
-    //     }
-    // }
-
-    int mean_input[3] = {
+    int mean_input[3] = { // 分母が2ではないが、これはテスト運用の際にカーソル移動量が過剰だったため。
         (input[0][0] + input[1][0]) /3,
         (input[0][1] + input[1][1]) /3,
-        // (input[0][0] > input[1][0]) ? input[0][0] : input[1][0],
-        // (input[0][1] > input[1][1]) ? input[0][1] : input[1][1],
         (abs(input[0][0]) + abs(input[1][0])) /4
     };
 
     switch(state){
-        case SAME_WAY_NUMBER:
-            mouse_report = mouse_mode_task(mean_input[0], mean_input[1], MOUSE_BTN3, true);
+        case SAME_WAY_ACTIVE:
+            mouse_report = mouse_mode_task(mean_input[0], mean_input[1], MOUSE_BTN3);
+        case SAME_WAY_START:
             shift_trigger = true;
             break;
-        case OPPOSITE_WAY_NUMBER:
+        case OPPOSITE_WAY_ACTIVE:
             if((input[0][0] < 0)&&(input[1][0] > 0)){
-                mouse_report = scroll_mode_task(0, -mean_input[2], true);
+                mouse_report = scroll_mode_task(0, -mean_input[2]);
             }else if((input[0][0] > 0)&&(input[1][0] < 0)){
-                mouse_report = scroll_mode_task(0, mean_input[2], true);
+                mouse_report = scroll_mode_task(0, mean_input[2]);
             }
+        case OPPOSITE_WAY_START:
             ctrl_trigger =true;
             break;
         // case -LEFT_NUMBER:
@@ -510,16 +436,17 @@ report_mouse_t fusion_mode_task_all(int input[2][2], int lr_flag){
         //     // 縮小
         //     mouse_report = scroll_mode_task(0, -mean_input[2], true);
         //     break;
-        case MOUSE_ONLY_NUMBER:
-            mouse_report = mouse_mode_task(input[1-lr_flag][0],input[1-lr_flag][1], 0, false);
+        case MOUSE_ONLY_ACTIVE:
+            mouse_report = mouse_mode_task(input[1-lr_flag][0],input[1-lr_flag][1], 0);
             break;
-        case FUSION_ONLY_NUMBER:
-            mouse_report = mouse_mode_task(input[lr_flag][0],input[lr_flag][1], MOUSE_BTN3, false);
+        case FUSION_ONLY_ACTIVE:
+            mouse_report = mouse_mode_task(input[lr_flag][0],input[lr_flag][1], MOUSE_BTN3);
             break;
         default:
             break;
     }
 
+    current_state = state;
     return mouse_report;
 }
 
@@ -573,13 +500,13 @@ report_mouse_t pointing_device_task_kb(report_mouse_t mouse_report) {
     
             switch(state_mds_joystick[0].mode){
                 case MOUSE_MODE_NUMBER:
-                    mouse_report = mouse_mode_task(temp_x, temp_y, 0, false);
+                    mouse_report = mouse_mode_task(temp_x, temp_y, 0);
                     break;
                 case SCROLL_MODE_NUMBER:
-                    mouse_report = scroll_mode_task(temp_x, temp_y, false);
+                    mouse_report = scroll_mode_task(temp_x, temp_y);
                     break;
                 case FUSION_MODE_NUMBER:
-                    mouse_report = mouse_mode_task(temp_x, temp_y, MOUSE_BTN3, true);
+                    mouse_report = mouse_mode_task(temp_x, temp_y, MOUSE_BTN3);
                     break;
                 default:
                     break;
@@ -592,24 +519,24 @@ report_mouse_t pointing_device_task_kb(report_mouse_t mouse_report) {
             }else{
                 switch(state_mds_joystick[0].mode){
                     case MOUSE_MODE_NUMBER:
-                        cursor_report = mouse_mode_task(joystick_current[0][0], joystick_current[0][1], 0, false);
+                        cursor_report = mouse_mode_task(joystick_current[0][0], joystick_current[0][1], 0);
                         break;
                     case SCROLL_MODE_NUMBER:
-                        scroll_report = scroll_mode_task(joystick_current[0][0], joystick_current[0][1], false);
+                        scroll_report = scroll_mode_task(joystick_current[0][0], joystick_current[0][1]);
                         break;
                     case FUSION_MODE_NUMBER:
-                        cursor_report = mouse_mode_task(joystick_current[0][0], joystick_current[0][1], MOUSE_BTN3, false);
+                        cursor_report = mouse_mode_task(joystick_current[0][0], joystick_current[0][1], MOUSE_BTN3);
                     break;
                 }
                 switch(state_mds_joystick[1].mode){
                     case MOUSE_MODE_NUMBER:
-                        cursor_report = mouse_mode_task(joystick_current[1][0], joystick_current[1][1], 0, false);
+                        cursor_report = mouse_mode_task(joystick_current[1][0], joystick_current[1][1], 0);
                         break;
                     case SCROLL_MODE_NUMBER:
-                        scroll_report = scroll_mode_task(joystick_current[1][0], joystick_current[1][1], false);
+                        scroll_report = scroll_mode_task(joystick_current[1][0], joystick_current[1][1]);
                         break;
                     case FUSION_MODE_NUMBER:
-                        cursor_report = mouse_mode_task(joystick_current[1][0], joystick_current[1][1], MOUSE_BTN3, false);
+                        cursor_report = mouse_mode_task(joystick_current[1][0], joystick_current[1][1], MOUSE_BTN3);
                     break;
                 }
                 mouse_report.x = cursor_report.x;

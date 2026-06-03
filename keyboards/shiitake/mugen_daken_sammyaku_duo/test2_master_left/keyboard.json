@@ -9,7 +9,7 @@
         "device_version": "0.0.1"
     },
     "features": {
-        "bootmagic": true,
+        "bootmagic": false,
         "command": false,
         "console": false,
         "extrakey": true,

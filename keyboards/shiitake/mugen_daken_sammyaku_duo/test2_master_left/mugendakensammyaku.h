@@ -24,6 +24,6 @@ extern status_mds_main_t state_mds_main;
 extern status_mds_ajs_t state_mds_joystick[2];
 
 void joystick_check(void);
-void joystick_caribration(void);
+void joystick_calibration(void);
 void joystick_mode_change(int lr_flag);
 void savedata_update(void);
