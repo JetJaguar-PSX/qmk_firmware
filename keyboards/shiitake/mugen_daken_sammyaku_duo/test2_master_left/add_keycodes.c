@@ -17,9 +17,9 @@ bool process_record_addedkeycodes(uint16_t keycode, keyrecord_t *record) {
             return false;
             break;
         
-        case JOYSTICK_CARIBRATION:
+        case JOYSTICK_CALIBRATION:
             if (record->event.pressed) {
-                joystick_caribration();
+                joystick_calibration();
             }
             return false;
             break;
